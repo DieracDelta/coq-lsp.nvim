@@ -20,6 +20,7 @@ function CoqLSPNvim:new(client, config)
   local new = {}
   new.lc = client
   new.buffers = {}
+  new.info_panel_win_metadata = nil
   new.debounce_timer = assert(vim.loop.new_timer(), 'Could not create timer')
   new.config = config
   new.progress_ns = vim.api.nvim_create_namespace('coq-lsp-progress-' .. client.id)
@@ -57,7 +58,18 @@ end
 
 ---@param bufnr buffer
 function CoqLSPNvim:create_info_panel(bufnr)
-  local info_bufnr = vim.api.nvim_create_buf(false, true)
+  local coq_bufnr = vim.api.nvim_get_current_buf()
+  local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(coq_bufnr), ":t")
+  local panel_name = "CoqInfoPanel: " .. filename
+  local info_bufnr = vim.api.nvim_create_buf(true, true)
+  vim.api.nvim_buf_set_name(info_bufnr, panel_name)
+
+  vim.bo[info_bufnr].buftype = "nofile"
+  vim.bo[info_bufnr].bufhidden = "hide"
+
+  -- vim.api.nvim_buf_set_option(info_bufnr, "buftype", "nofile")
+  -- vim.api.nvim_buf_set_option(info_bufnr, "bufhidden", "hide")
+
   vim.bo[info_bufnr].filetype = 'coq-goals'
   self.buffers[bufnr].info_bufnr = info_bufnr
 end
@@ -74,16 +86,20 @@ end
 
 ---@param bufnr? buffer
 function CoqLSPNvim:open_info_panel(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local win = vim.api.nvim_get_current_win()
-  vim.cmd.sbuffer {
-    args = { self:get_info_bufnr(bufnr) },
-    -- TODO: customization
-    -- See `:h nvim_parse_cmd`. Note that the "split size" is `range`.
-    mods = { keepjumps = true, keepalt = true, vertical = true, split = 'belowright' },
-  }
-  vim.cmd.clearjumps()
-  vim.api.nvim_set_current_win(win)
+  local info_buf = self.buffers[bufnr].info_bufnr
+
+  if self.info_panel_win_metadata and vim.api.nvim_win_is_valid(self.info_panel_win_metadata) then
+    vim.api.nvim_win_set_buf(self.info_panel_win_metadata, info_buf)
+  else
+    -- Otherwise, open a new info panel using sbuffer.
+    vim.cmd.sbuffer {
+      args = { self:get_info_bufnr(bufnr) },
+      mods = { keepjumps = true, keepalt = true, vertical = true, split = 'belowright' },
+    }
+    vim.cmd.clearjumps()
+    -- Store the new window id in our global state.
+    self.info_panel_win_metadata = vim.api.nvim_get_current_win()
+  end
 end
 
 commands[#commands + 1] = 'open_info_panel'
