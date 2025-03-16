@@ -42,7 +42,7 @@ end
 function M.guess_position(bufnr)
   local win = vim.api.nvim_get_current_win()
   if vim.api.nvim_win_get_buf(win) ~= bufnr then
-    error("can't guess position")
+    return {0, 1}
   end
   return vim.api.nvim_win_get_cursor(win)
 end

@@ -239,6 +239,16 @@ function CoqLSPNvim:unregister(bufnr)
   self.buffers[bufnr] = nil
 end
 
+function CoqLSPNvim:update_panel()
+  local cur_bufnr = vim.api.nvim_get_current_buf()
+  if self.buffers[cur_bufnr] then
+    if self.info_panel_win_metadata and vim.api.nvim_win_is_valid(self.info_panel_win_metadata) then
+      vim.api.nvim_win_set_buf(self.info_panel_win_metadata, self.buffers[cur_bufnr].info_bufnr)
+
+    end
+  end
+end
+
 ---@param bufnr buffer
 function CoqLSPNvim:register(bufnr)
   assert(self.buffers[bufnr] == nil)
@@ -252,6 +262,7 @@ function CoqLSPNvim:register(bufnr)
     desc = 'Request proof/goals on cursor movement',
     callback = function()
       self:goals_async_debounced()
+      self:update_panel()
     end,
   })
   -- nvim bug? If the current coq buf is the only valid buffer and I bwipeout
