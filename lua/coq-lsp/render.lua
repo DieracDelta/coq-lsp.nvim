@@ -5,6 +5,26 @@ local M = {}
 -- * handle multi-line pp
 -- * different types for Pp (pp_type)
 
+-- Helper function to convert Pp objects or other values to strings
+local function to_string(value)
+  if type(value) == 'string' then
+    return value
+  elseif type(value) == 'userdata' or type(value) == 'table' then
+    -- Pp objects may come as userdata or tables; try tostring or inspect
+    local ok, str = pcall(tostring, value)
+    if ok and str and not str:match('^userdata:') then
+      return str
+    end
+    -- Fallback: try vim.inspect for tables
+    if type(value) == 'table' then
+      return vim.inspect(value)
+    end
+    return '<pp>'
+  else
+    return tostring(value)
+  end
+end
+
 ---@param i integer
 ---@param n integer
 ---@param goal coqlsp.Goal
@@ -13,16 +33,18 @@ function M.Goal(i, n, goal)
   local lines = {}
   lines[#lines + 1] = 'Goal ' .. i .. ' / ' .. n
   for _, hyp in ipairs(goal.hyps) do
-    local line = table.concat(hyp.names, ', ') .. ' : ' .. hyp.ty
+    local ty = to_string(hyp.ty)
+    local line = table.concat(hyp.names, ', ') .. ' : ' .. ty
     if hyp.def then
-      line = line .. ' := ' .. hyp.def
+      local def = to_string(hyp.def)
+      line = line .. ' := ' .. def
     end
     vim.list_extend(lines, vim.split(line, '\n'))
   end
   lines[#lines + 1] = ''
   lines[#lines + 1] = '========================================'
   lines[#lines + 1] = ''
-  vim.list_extend(lines, vim.split(goal.ty, '\n'))
+  vim.list_extend(lines, vim.split(to_string(goal.ty), '\n'))
   return lines
 end
 
@@ -47,7 +69,7 @@ end
 ---@return string[]
 function M.Message(message)
   local lines = {}
-  vim.list_extend(lines, vim.split(message.text, '\n'))
+  vim.list_extend(lines, vim.split(to_string(message.text), '\n'))
   return lines
 end
 
@@ -114,7 +136,7 @@ function M.GoalAnswer(answer, position)
     lines[#lines + 1] =
       'Error ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
     lines[#lines + 1] = ''
-    vim.list_extend(lines, vim.split(answer.error, '\n'))
+    vim.list_extend(lines, vim.split(to_string(answer.error), '\n'))
   end
 
   return lines
